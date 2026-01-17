@@ -1,58 +1,18 @@
-# Running EsViritu
 
+# Optional helpers
+mamba install -n EsViritu -c bioconda filtlong porechop -y
 
-You might run this as part of a bash script, snakemake pipeline, do your own upstream read processing, etc, but these are the basic instructions.
+# (Recommended) regenerate ONT index
+minimap2 -d virus_db_ont.mmi virus_pathogen_database.fna   # ONT-friendly index build  [9](https://lh3.github.io/minimap2/minimap2.html)
 
-*Required inputs:*
-
-`-r reads file (.fastq)`
-
-`-s sample name`
-
-`-o output directory (may be shared with other samples)`
-
-Activate the conda environment:
-
-`conda activate EsViritu`
-
-Individual samples can be run with the python script. E.g.:
-
-**Basic run with 1 .fastq file:**
-
-```bash
-EsViritu -r /path/to/reads/myreads.fastq -s sample_ABC -o myproject_EsViritu1 -p unpaired
-```
-
-**Using paired end input .fastq files. Must be exactly 2 files.**
-
-```bash
-EsViritu -r /path/to/reads/myreads.R1.fastq /path/to/reads/myreads.R2.fastq -s sample_ABC -o myproject_EsViritu1 -p paired
-```
-
-**With pre-filtering steps:**
-
-```bash
-EsViritu -r /path/to/reads/myreads.fastq -s sample_ABC -o myproject_EsViritu1 -q True -f True -p unpaired
-```
-
-**Help menu**
-
-```bash
-EsViritu -h
-```
-
-## Making a summary report for a batch of samples
-
-Run the batch summary script to collate reports from several sequencing libraries in a project:
-
-Example:
-
-Activate conda environment: `conda activate EsViritu`
-
-Then run the `summarize_esv_runs` command with the relative path to the output directory as the only argument:
-
-```bash
-summarize_esv_runs myproject_EsViritu1
-```
-
-This command will generate the tables `myproject_EsViritu1.detected_virus.info.tsv`, `myproject_EsViritu1.detected_virus.assembly_summary.tsv`, `myproject_EsViritu1.tax_profile.tsv` and the reactable `myproject_EsViritu1.batch_detected_viruses.html`, which summarize information about all the samples in the given directory.
+# Run in ONT mode
+EsViritu \
+  --platform ont \
+  -r sample.fastq.gz \
+  -s S1 \
+  -o out_dir \
+  -q True -f True \
+  --filter_db filter_seqs/filter_seqs.fna \
+  --ont-preset map-ont \
+  --ont-min-len 500 --ont-min-prop 0.60 --ont-min-acc 0.75 \
+  -p unpaired -t 8
