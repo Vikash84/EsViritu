@@ -21,3 +21,7 @@ dependencies:
   - r-reactablefmtr
   - r-magrittr
   - r-base64enc
+  - r-glue
+  - r-htmlwidgets
+  - r-jsonlite
+  - r-reactr
