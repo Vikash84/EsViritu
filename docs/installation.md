@@ -9,7 +9,7 @@ Database: **v3.2.4**
 
 ### Stable release via Bioconda (recommended)
 
-*NOTE: 2026-07-20 EsViritu v1.3.3 released and available on bioconda.*
+*NOTE: 2026-07-20 EsViritu v1.3.3 released and queued for release on bioconda.*
 
 **1)  Create conda environment. `mamba` is preferable to `conda` for environment creation.**
 

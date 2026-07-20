@@ -3,7 +3,7 @@
 
 DBs/
 filter_seqs/
-tests/
+exclude/
 # History files
 .Rhistory
 .Rapp.history
