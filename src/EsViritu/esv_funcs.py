@@ -45,19 +45,19 @@ def trim_filter(reads: list, outdir: str, tempdir: str, trim: bool, filter: bool
     """
     Trim and/or filter .fastq reads using fastp (quality trim) and minimap2+pysam (host/spike-in filter).
     Args:
-        reads: str, path to input fastq file(s). If paired, should be space-separated paths.
+        reads: list, path(s) to input fastq file(s).
         outdir: str, output directory for summary files.
         tempdir: str, directory for intermediate files.
         trim: bool, whether to perform quality trimming with fastp.
         filter: bool, whether to filter reads mapping to filter_db with minimap2.
         filter_db: str, path to fasta file for minimap2 filtering (required if filter=True).
-        paired: str, "paired" or "unpaired".
+        paired: str, "paired", "interleaved", or "unpaired".
         threads: int, number of threads to use.
         mmk: str, minimap2 -K parameter
         mmp: str, minimap2 preset for sequencing tech
         dedup: bool, whether to remove PCR duplicates with fastp --dedup.
     Returns:
-        str: path to output fastq file with processed reads.
+        list: path(s) to output fastq files with processed reads.
     """
 
     os.makedirs(outdir, exist_ok=True)
@@ -95,6 +95,20 @@ def trim_filter(reads: list, outdir: str, tempdir: str, trim: bool, filter: bool
                 logger.error(f"fastp paired trimming failed: {fastp_cmd}\nError: {e}")
                 raise
             input_fastq = [trimmed1, trimmed2]
+        elif paired == "interleaved":
+            fastp_cmd = [
+                "fastp", "-i", reads[0], "--interleaved_in", "--stdout",
+                "-w", str(fastp_threads), "--html", fastp_html, "--json", fastp_json
+            ]
+            if dedup:
+                fastp_cmd.append("--dedup")
+            try:
+                with open(trimmed_fastq, "wb") as trimmed_handle:
+                    subprocess.run(fastp_cmd, stdout=trimmed_handle, check=True)
+            except Exception as e:
+                logger.error(f"fastp interleaved trimming failed: {fastp_cmd}\nError: {e}")
+                raise
+            input_fastq = [trimmed_fastq]
         else:
             fastp_cmd = [
                 "fastp", "--in1", reads[0], "--out1", trimmed_fastq,
@@ -132,6 +146,17 @@ def trim_filter(reads: list, outdir: str, tempdir: str, trim: bool, filter: bool
                 except Exception as e:
                     logger.error(f"fastp_stat_paired_cmd failed: {fastp_stat_paired_cmd}\nError: {e}")
                     raise
+            elif paired == "interleaved":
+                fastp_stat_interleaved_cmd = [
+                    "fastp", "-i", input_fastq[0], "--interleaved_in",
+                    "-w", str(fastp_threads), "--html", pre_filt_fastp_html,
+                    "--json", pre_filt_fastp_json
+                ]
+                try:
+                    subprocess.run(fastp_stat_interleaved_cmd, check=True)
+                except Exception as e:
+                    logger.error(f"fastp_stat_interleaved_cmd failed: {fastp_stat_interleaved_cmd}\nError: {e}")
+                    raise
             else:
                 fastp_stat_single_cmd = [
                     "fastp", "-i", input_fastq[0],
@@ -144,22 +169,26 @@ def trim_filter(reads: list, outdir: str, tempdir: str, trim: bool, filter: bool
                     logger.error(f"fastp_stat_single_cmd failed: {fastp_stat_single_cmd}\nError: {e}")
                     raise
 
-        if paired == "paired":
-            read1, read2 = input_fastq
-            minimap2_cmd = [
-                "minimap2", "-t", str(threads), "-ax", mmp, "-K", mmk, filter_db, read1, read2
-            ]
-        else:
-            minimap2_cmd = [
-                "minimap2", "-t", str(threads), "-ax", mmp, "-K", mmk, filter_db, input_fastq[0]
-            ]
+        minimap2_cmd = [
+            "minimap2", "-t", str(threads), "-ax", mmp, "-K", mmk, filter_db, *input_fastq
+        ]
         samtools_view_cmd = ["samtools", "view", "-bS", "-"]
-        samtools_sort_cmd = ["samtools", "sort", "-"]
+        if paired in ("paired", "interleaved"):
+            samtools_sort_cmd = ["samtools", "sort", "-n", "-"]
+        else:
+            samtools_sort_cmd = ["samtools", "sort", "-"]
         if paired == "paired":
             unmapped_fastq1 = filtered_fastq.replace(".fastq", "_R1.fastq")
             unmapped_fastq2 = filtered_fastq.replace(".fastq", "_R2.fastq")
             # the 12 flag is like 4 + 8 (keep if unmapped and pair is unmapped)
-            samtools_fastq_cmd = ["samtools", "fastq", "-f", "12", "-1", unmapped_fastq1, "-2", unmapped_fastq2, "-"]
+            samtools_fastq_cmd = [
+                "samtools", "fastq", "-f", "12", "-1", unmapped_fastq1,
+                "-2", unmapped_fastq2, "-0", os.devnull, "-s", os.devnull, "-"
+            ]
+        elif paired == "interleaved":
+            samtools_fastq_cmd = [
+                "samtools", "fastq", "-f", "12", "-0", os.devnull, "-s", os.devnull, "-"
+            ]
         else:
             samtools_fastq_cmd = ["samtools", "fastq", "-f", "4", "-0", filtered_fastq, "-"]
 
@@ -167,11 +196,19 @@ def trim_filter(reads: list, outdir: str, tempdir: str, trim: bool, filter: bool
         p1 = subprocess.Popen(minimap2_cmd, stdout=subprocess.PIPE)
         p2 = subprocess.Popen(samtools_view_cmd, stdin=p1.stdout, stdout=subprocess.PIPE)
         p3 = subprocess.Popen(samtools_sort_cmd, stdin=p2.stdout, stdout=subprocess.PIPE)
-        p4 = subprocess.Popen(samtools_fastq_cmd, stdin=p3.stdout)
-        p1.stdout.close()
-        p2.stdout.close()
-        p3.stdout.close()
-        p4.communicate()
+        if paired == "interleaved":
+            with open(filtered_fastq, "wb") as filtered_handle:
+                p4 = subprocess.Popen(samtools_fastq_cmd, stdin=p3.stdout, stdout=filtered_handle)
+                p1.stdout.close()
+                p2.stdout.close()
+                p3.stdout.close()
+                p4.communicate()
+        else:
+            p4 = subprocess.Popen(samtools_fastq_cmd, stdin=p3.stdout)
+            p1.stdout.close()
+            p2.stdout.close()
+            p3.stdout.close()
+            p4.communicate()
 
         if paired == "paired":
             output_fastq = [unmapped_fastq1, unmapped_fastq2]
@@ -227,6 +264,17 @@ def fastp_stats(reads: list, outdir: str, sample_name: str, trimarg: bool, filta
             subprocess.run(fastp_stat_paired_cmd, check=True)
         except Exception as e:
             logger.error(f"fastp_stat_paired_cmd failed: {fastp_stat_paired_cmd}\nError: {e}")
+            raise
+    elif paired == "interleaved":
+        fastp_stat_interleaved_cmd = [
+            "fastp", "-i", reads[0], "--interleaved_in",
+            "-w", str(fastp_threads), "--html", pipeline_stats_fastp_html,
+            "--json", pipeline_stats_fastp_json
+        ]
+        try:
+            subprocess.run(fastp_stat_interleaved_cmd, check=True)
+        except Exception as e:
+            logger.error(f"fastp_stat_interleaved_cmd failed: {fastp_stat_interleaved_cmd}\nError: {e}")
             raise
     else:
         fastp_stat_single_cmd = [

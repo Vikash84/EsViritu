@@ -29,6 +29,14 @@ EsViritu -r /path/to/reads/myreads.fastq -s sample_ABC -o myproject_EsViritu1 -p
 EsViritu -r /path/to/reads/myreads.R1.fastq /path/to/reads/myreads.R2.fastq -s sample_ABC -o myproject_EsViritu1 -p paired
 ```
 
+**Using one interleaved paired-end .fastq file:**
+
+Interleaved mates must be adjacent and have matching names. Conventional `/1` and `/2` name suffixes are supported.
+
+```bash
+EsViritu -r /path/to/reads/myreads.interleaved.fastq -s sample_ABC -o myproject_EsViritu1 -p interleaved
+```
+
 **With pre-filtering steps:**
 
 ```bash

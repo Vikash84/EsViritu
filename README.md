@@ -43,14 +43,14 @@ Logo by [Adrien Assie](https://github.com/aassie)
 
 ### Current Versions
 
-Code: **v1.3.2**
+Code: **v1.3.3**
 
 Database: **v3.2.4**
 
 
 ### Stable release via Bioconda (recommended)
 
-*NOTE: 2026-07-13 EsViritu v1.3.2 released and available on bioconda.*
+*NOTE: 2026-07-20 EsViritu v1.3.3 released and queued for release on bioconda.*
 
 **1)  Create conda environment. `mamba` is preferable to `conda` for environment creation.**
 
@@ -125,6 +125,14 @@ EsViritu -r /path/to/reads/myreads.fastq -s sample_ABC -o myproject_EsViritu1 -p
 
 ```bash
 EsViritu -r /path/to/reads/myreads.R1.fastq /path/to/reads/myreads.R2.fastq -s sample_ABC -o myproject_EsViritu1 -p paired
+```
+
+**Using one interleaved paired-end .fastq file:**
+
+Interleaved mates must be adjacent and have matching names. Conventional `/1` and `/2` name suffixes are supported.
+
+```bash
+EsViritu -r /path/to/reads/myreads.interleaved.fastq -s sample_ABC -o myproject_EsViritu1 -p interleaved
 ```
 
 **With pre-filtering steps:**

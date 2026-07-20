@@ -31,7 +31,7 @@ def esviritu():
     print(esviritu_script_path) 
     def_workdir = os.getcwd()
 
-    __version__='1.3.2'
+    __version__='1.3.3'
 
     esv_start_time = time.perf_counter()
 
@@ -48,8 +48,8 @@ def esviritu():
         "-r", "--reads", nargs="+",
         dest="READS", required=True, 
         help='read file(s) in .fastq format. \
-            For unpaired reads of any kind, exactly one file path required. \
-            For paired reads, exactly two file paths required, separated by a space. \
+            For unpaired or interleaved paired reads, exactly one file path is required. \
+            For paired reads, exactly two file paths are required, separated by a space. \
             Wildcards, e.g /path/to/reads/*fastq, will work but number of files must be correct.'
             )
     required_args.add_argument(
@@ -104,9 +104,9 @@ def esviritu():
         )
     optional_args.add_argument(
         "-p", "--read_format", 
-        dest="READ_FMT", type=str, default='paired',
-        help='unpaired or paired. Format of input reads. If paired, must provide 2 files \
-            (R1, then R2) after -r argument.'
+        dest="READ_FMT", type=str.lower, choices=['unpaired', 'paired', 'interleaved'], default='paired',
+        help='unpaired, paired, or interleaved. Paired input requires 2 files \
+            (R1, then R2); interleaved input requires 1 file after -r argument.'
         )
     optional_args.add_argument(
         "-mmP", "--minimap2-preset", dest="MM_SET", type=str, choices=['sr', 'map-hifi', 'lr:hq', 'sense'], 
@@ -223,11 +223,14 @@ def esviritu():
         )
     
 
-    if len(args.READS) != 2 and str(args.READ_FMT).lower() == "paired":
+    if len(args.READS) != 2 and args.READ_FMT == "paired":
         logger.error("if stating --read_format paired, must provide exactly 2 read files")
         sys.exit()
-    elif len(args.READS) != 1 and str(args.READ_FMT).lower() == "unpaired":
+    elif len(args.READS) != 1 and args.READ_FMT == "unpaired":
         logger.error("if stating --read_format unpaired, must provide exactly 1 read file")
+        sys.exit()
+    elif len(args.READS) != 1 and args.READ_FMT == "interleaved":
+        logger.error("if stating --read_format interleaved, must provide exactly 1 read file")
         sys.exit()
 
     for inr in args.READS:
