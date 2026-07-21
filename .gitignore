@@ -4,6 +4,7 @@
 DBs/
 filter_seqs/
 exclude/
+.vscode/
 # History files
 .Rhistory
 .Rapp.history
